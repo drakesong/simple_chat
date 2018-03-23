@@ -30,28 +30,28 @@ public class Server {
         keepGoing = true;
         try {
             ServerSocket serverSocket = new ServerSocket(port);
-
             while (keepGoing) {
                 display("Server waiting for Clients on port " + port + ".");
 
                 Socket socket = serverSocket.accept();
-                if (!keepGoing)
+                if (!keepGoing) {
                     break;
-                ClientThread t = new ClientThread(socket);
-                clientList.add(t);
-                t.start();
+                }
+                ClientThread clientThread = new ClientThread(socket);
+                clientList.add(clientThread);
+                clientThread.start();
             }
 
             try {
                 serverSocket.close();
-                for (int i = 0; i < clientList.size(); ++i) {
+                for (int i = 0; i < clientList.size(); i++) {
                     ClientThread tc = clientList.get(i);
                     try {
                         tc.sInput.close();
                         tc.sOutput.close();
                         tc.socket.close();
-                    } catch (IOException ioE) {
-                        display("Exception: " + ioE);
+                    } catch (IOException e) {
+                        display("Exception: " + e);
                     }
                 }
             } catch (Exception e) {
@@ -74,36 +74,38 @@ public class Server {
 
     private void display(String msg) {
         String time = simpleDate.format(new Date()) + " " + msg;
-        if (serverGUI == null)
+        if (serverGUI == null) {
             System.out.println(time);
-        else
+        } else {
             serverGUI.appendEvent(time + "\n");
+        }
     }
 
     private synchronized void broadcast(String message) {
         String time = simpleDate.format(new Date());
         String messageLf = time + " " + message + "\n";
 
-        if (serverGUI == null)
+        if (serverGUI == null) {
             System.out.print(messageLf);
-        else
+        } else {
             serverGUI.appendRoom(messageLf);
+        }
 
         for (int i = clientList.size(); i >= 0; i--) {
-            ClientThread ct = clientList.get(i);
+            ClientThread clientThread = clientList.get(i);
 
-            if (!ct.writeMsg(messageLf)) {
+            if (!clientThread.writeMsg(messageLf)) {
                 clientList.remove(i);
-                display("Disconnected Client " + ct.username + " removed from list.");
+                display("Disconnected Client " + clientThread.username + " removed from list.");
             }
         }
     }
 
     synchronized void remove(int id) {
-        for (int i = 0; i < clientList.size(); ++i) {
-            ClientThread ct = clientList.get(i);
+        for (int i = 0; i < clientList.size(); i++) {
+            ClientThread clientThread = clientList.get(i);
 
-            if (ct.id == id) {
+            if (clientThread.id == id) {
                 clientList.remove(i);
                 return;
             }
@@ -138,11 +140,11 @@ public class Server {
         ObjectOutputStream sOutput;
         int id;
         String username;
-        ChatMessage cm;
+        ChatMessage chatMessage;
         String date;
 
         ClientThread(Socket socket) {
-            id = ++uniqueId;
+            id = uniqueId++;
             this.socket = socket;
             System.out.println("Thread trying to create Object Input/Output Streams");
 
@@ -164,16 +166,16 @@ public class Server {
             boolean keepGoing = true;
             while (keepGoing) {
                 try {
-                    cm = (ChatMessage) sInput.readObject();
+                    chatMessage = (ChatMessage) sInput.readObject();
                 } catch (IOException e) {
                     display(username + " Exception reading Streams: " + e);
                     break;
-                } catch (ClassNotFoundException e2) {
+                } catch (ClassNotFoundException e) {
                     break;
                 }
 
-                String message = cm.getMessage();
-                switch (cm.getType()) {
+                String message = chatMessage.getMessage();
+                switch (chatMessage.getType()) {
                     case ChatMessage.MESSAGE:
                         broadcast(username + ": " + message);
                         break;
@@ -183,9 +185,9 @@ public class Server {
                         break;
                     case ChatMessage.WHOISIN:
                         writeMsg("List of the users connected at " + simpleDate.format(new Date()) + "\n");
-                        for (int i = 0; i < clientList.size(); ++i) {
-                            ClientThread ct = clientList.get(i);
-                            writeMsg((i + 1) + ") " + ct.username + " since " + ct.date);
+                        for (int i = 0; i < clientList.size(); i++) {
+                            ClientThread clientThread = clientList.get(i);
+                            writeMsg((i + 1) + ") " + clientThread.username + " since " + clientThread.date);
                         }
                         break;
                 }
@@ -225,10 +227,10 @@ public class Server {
                 close();
                 return false;
             }
+
             try {
                 sOutput.writeObject(msg);
-            }
-            catch (IOException e) {
+            } catch (IOException e) {
                 display("Error sending message to " + username);
                 display(e.toString());
             }
